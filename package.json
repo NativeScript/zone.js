@@ -40,6 +40,7 @@
     "test:single": "npm run tsc && concurrently \"npm run ws-server\" \"npm run karma-jasmine:autoclose\"",
     "test-dist": "concurrently \"npm run tsc:w\" \"npm run ws-server\" \"karma start karma-dist-jasmine.conf.js\"",
     "test-node": "gulp test/node",
+    "test-nativescript": "gulp test/nativescript",
     "test-mocha": "npm run tsc && concurrently \"npm run tsc:w\" \"npm run ws-server\" \"karma start karma-build-mocha.conf.js\"",
     "serve": "python -m SimpleHTTPServer 8000"
   },
