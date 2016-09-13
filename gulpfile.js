@@ -111,6 +111,18 @@ gulp.task('build/zone-node.js', ['compile-esm-node'], function(cb) {
   return generateScript('./lib/node/rollup-main.ts', 'zone-node.js', false, cb);
 });
 
+gulp.task('build/zone-nativescript.js', ['compile-esm'], function (cb) {
+  return generateScript('./lib/nativescript/nativescript.ts', 'zone-nativescript.js', false, cb);
+});
+
+gulp.task('build/zone-nativescript.mocha.js', ['compile-esm'], function (cb) {
+  return generateScript('./lib/nativescript/nativescript.mocha.ts', 'zone-nativescript.mocha.js', false, cb);
+});
+
+gulp.task('build/zone-nativescript.jasmine.js', ['compile-esm'], function (cb) {
+  return generateScript('./lib/nativescript/nativescript.jasmine.ts', 'zone-nativescript.jasmine.js', false, cb);
+});
+
 // Zone for the browser.
 gulp.task('build/zone.js', ['compile-esm'], function(cb) {
   return generateScript('./lib/browser/rollup-main.ts', 'zone.js', false, cb);
@@ -376,6 +388,9 @@ gulp.task('build', [
   'build/bluebird.min.js',
   'build/zone-patch-jsonp.js',
   'build/zone-patch-jsonp.min.js',
+  'build/zone-nativescript.js',
+  'build/zone-nativescript.mocha.js',
+  'build/zone-nativescript.jasmine.js',
   'build/jasmine-patch.js',
   'build/jasmine-patch.min.js',
   'build/mocha-patch.js',
@@ -439,6 +454,11 @@ gulp.task('test/node', ['compile-node'], function(cb) {
 
 gulp.task('test/bluebird', ['compile-node'], function(cb) {
   var specFiles = ['build/test/node_bluebird_entry_point.js'];
+  nodeTest(specFiles, cb);
+});
+
+gulp.task('test/nativescript', ['compile-node'], function(cb) {
+  var specFiles = ['build/test/nativescript_entry_point.js'];
   nodeTest(specFiles, cb);
 });
 
