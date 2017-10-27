@@ -1,65 +1,75 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {ifEnvSupports} from '../test-util';
+declare const global: any;
 
-describe('MutationObserver', ifEnvSupports('MutationObserver', function () {
-  var elt;
-  var testZone = Zone.current.fork({name: 'test'});
 
-  beforeEach(function () {
-    elt = document.createElement('div');
-  });
+describe('MutationObserver', ifEnvSupports('MutationObserver', function() {
+           let elt: HTMLDivElement;
+           const testZone = Zone.current.fork({name: 'test'});
 
-  it('should run observers within the zone', function (done) {
-    var ob;
+           beforeEach(function() {
+             elt = document.createElement('div');
+           });
 
-    testZone.run(function() {
-      ob = new MutationObserver(function () {
-        expect(Zone.current).toBe(testZone);
-        done();
-      });
+           it('should run observers within the zone', function(done) {
+             let ob;
 
-      ob.observe(elt, { childList: true });
-    });
+             testZone.run(function() {
+               ob = new MutationObserver(function() {
+                 expect(Zone.current).toBe(testZone);
+                 done();
+               });
 
-    elt.innerHTML = '<p>hey</p>';
-  });
+               ob.observe(elt, {childList: true});
+             });
 
-  it('should only dequeue upon disconnect if something is observed', function () {
-    var ob;
-    var flag = false;
-    var elt = document.createElement('div');
-    var childZone = Zone.current.fork({
-      name: 'test',
-      onInvokeTask: function () {
-        flag = true;
-      }
-    });
+             elt.innerHTML = '<p>hey</p>';
+           });
 
-    childZone.run(function () {
-      ob = new MutationObserver(function () {});
-    });
+           it('should only dequeue upon disconnect if something is observed', function() {
+             let ob: MutationObserver;
+             let flag = false;
+             const elt = document.createElement('div');
+             const childZone = Zone.current.fork({
+               name: 'test',
+               onInvokeTask: function() {
+                 flag = true;
+               }
+             });
 
-    ob.disconnect();
-    expect(flag).toBe(false);
-  });
-}));
+             childZone.run(function() {
+               ob = new MutationObserver(function() {});
+             });
 
-describe('WebKitMutationObserver', ifEnvSupports('WebKitMutationObserver', function () {
-  var testZone = Zone.current.fork({ name: 'test' });
+             ob.disconnect();
+             expect(flag).toBe(false);
+           });
+         }));
 
-  it('should run observers within the zone', function (done) {
-    var elt;
+describe('WebKitMutationObserver', ifEnvSupports('WebKitMutationObserver', function() {
+           const testZone = Zone.current.fork({name: 'test'});
 
-    testZone.run(function() {
-      elt = document.createElement('div');
+           it('should run observers within the zone', function(done) {
+             let elt: HTMLDivElement;
 
-      var ob = new global['WebKitMutationObserver'](function () {
-        expect(Zone.current).toBe(testZone);
-        done();
-      });
+             testZone.run(function() {
+               elt = document.createElement('div');
 
-      ob.observe(elt, { childList: true});
-    });
+               const ob = new global['WebKitMutationObserver'](function() {
+                 expect(Zone.current).toBe(testZone);
+                 done();
+               });
 
-    elt.innerHTML = '<p>hey</p>';
-  });
-}));
+               ob.observe(elt, {childList: true});
+             });
+
+             elt.innerHTML = '<p>hey</p>';
+           });
+         }));

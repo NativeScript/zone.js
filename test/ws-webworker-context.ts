@@ -1,4 +1,13 @@
-declare function importScripts(path:string): void;
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
 
-importScripts('/base/node_modules/systemjs/dist/system.src.js');
-importScripts('/base/build/test/zone_worker_entry_point.js');
+declare function importScripts(path: string): void;
+
+    importScripts('/base/build/lib/zone.js');
+    importScripts('/base/node_modules/systemjs/dist/system.src.js');
+    importScripts('/base/build/test/zone_worker_entry_point.js');

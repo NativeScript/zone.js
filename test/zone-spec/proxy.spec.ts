@@ -1,3 +1,11 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import '../../lib/zone-spec/proxy';
 
 describe('ProxySpec', () => {
@@ -5,9 +13,9 @@ describe('ProxySpec', () => {
   let delegate: ZoneSpec;
   let proxyZoneSpec: any;
   let proxyZone: Zone;
-  
+
   beforeEach(() => {
-    ProxyZoneSpec = Zone['ProxyZoneSpec'];
+    ProxyZoneSpec = (Zone as any)['ProxyZoneSpec'];
     expect(typeof ProxyZoneSpec).toBe('function');
     delegate = {name: 'delegate'};
     proxyZoneSpec = new ProxyZoneSpec(delegate);
@@ -21,7 +29,7 @@ describe('ProxySpec', () => {
 
     it('should assert that it is in or out of ProxyZone', () => {
       let rootZone = Zone.current;
-      while(rootZone.parent) {
+      while (rootZone.parent) {
         rootZone = rootZone.parent;
       }
       rootZone.run(() => {
@@ -58,7 +66,7 @@ describe('ProxySpec', () => {
       expect(proxyZoneSpec.getDelegate()).toEqual(otherDelegate);
       proxyZoneSpec.resetDelegate();
       expect(proxyZoneSpec.getDelegate()).toEqual(defaultDelegate);
-    }); 
+    });
   });
 
   describe('forwarding', () => {
@@ -68,16 +76,16 @@ describe('ProxySpec', () => {
     });
 
     it('should fork', () => {
-      const forkeZone = proxyZone.fork({name: 'fork'});
-      expect(forkeZone).not.toBe(proxyZone);
-      expect(forkeZone.name).toBe('fork');
-      var called = false;
+      const forkedZone = proxyZone.fork({name: 'fork'});
+      expect(forkedZone).not.toBe(proxyZone);
+      expect(forkedZone.name).toBe('fork');
+      let called = false;
       proxyZoneSpec.setDelegate({
-        name: '.', 
-        onFork: (parentZoneDelegate, currentZone, targetZone, zoneSpec) => {
+        name: '.',
+        onFork: (parentZoneDelegate: ZoneDelegate, currentZone: Zone, targetZone: Zone,
+                 zoneSpec: ZoneSpec) => {
           expect(currentZone).toBe(proxyZone);
-          expect(targetZone).toBe(proxyZone),
-          expect(zoneSpec.name).toBe('fork2');
+          expect(targetZone).toBe(proxyZone), expect(zoneSpec.name).toBe('fork2');
           called = true;
         }
       });
@@ -86,13 +94,13 @@ describe('ProxySpec', () => {
     });
 
     it('should intercept', () => {
-      const fn = (a) => a;
+      const fn = (a: any) => a;
       expect(proxyZone.wrap(fn, 'test')('works')).toEqual('works');
       proxyZoneSpec.setDelegate({
-        name: '.', 
+        name: '.',
         onIntercept: (parentZoneDelegate: ZoneDelegate, currentZone: Zone, targetZone: Zone,
-                delegate: Function, source: string): Function => {
-                  return () => '(works)';
+                      delegate: Function, source: string): Function => {
+          return () => '(works)';
         }
       });
       expect(proxyZone.wrap(fn, 'test')('works')).toEqual('(works)');
@@ -102,32 +110,35 @@ describe('ProxySpec', () => {
       const fn = () => 'works';
       expect(proxyZone.run(fn)).toEqual('works');
       proxyZoneSpec.setDelegate({
-        name: '.', 
+        name: '.',
         onInvoke: (parentZoneDelegate: ZoneDelegate, currentZone: Zone, targetZone: Zone,
-          delegate: Function, applyThis: any, applyArgs: any[], source: string) => {
-            return `(${parentZoneDelegate.invoke(targetZone, delegate, applyThis, applyArgs, source)})`;
+                   delegate: Function, applyThis: any, applyArgs: any[], source: string) => {
+          return `(${parentZoneDelegate.invoke(
+              targetZone, delegate, applyThis, applyArgs, source)})`;
         }
       });
       expect(proxyZone.run(fn)).toEqual('(works)');
     });
 
     it('should handleError', () => {
-      const error = new Error("TestError");
-      const fn = () => { throw error };
+      const error = new Error('TestError');
+      const fn = () => {
+        throw error;
+      };
       expect(() => proxyZone.run(fn)).toThrow(error);
       proxyZoneSpec.setDelegate({
-        name: '.', 
+        name: '.',
         onHandleError: (parentZoneDelegate: ZoneDelegate, currentZone: Zone, targetZone: Zone,
-                  error: any): boolean => {
-            expect(error).toEqual(error);
-            return false;
+                        error: any): boolean => {
+          expect(error).toEqual(error);
+          return false;
         }
       });
       expect(() => proxyZone.runGuarded(fn)).not.toThrow();
     });
 
     it('should Task', () => {
-      const fn = () => null;
+      const fn = () => null as void;
       const task = proxyZone.scheduleMacroTask('test', fn, {}, () => null, () => null);
       expect(task.source).toEqual('test');
       proxyZone.cancelTask(task);

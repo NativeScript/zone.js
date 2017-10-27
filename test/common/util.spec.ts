@@ -1,28 +1,38 @@
-import {patchMethod, zoneSymbol} from '../../lib/common/utils';
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
 
-describe('utils', function () {
+import {patchMethod, patchProperty, patchPrototype, zoneSymbol} from '../../lib/common/utils';
+
+describe('utils', function() {
 
   describe('patchMethod', () => {
     it('should patch target where the method is defined', () => {
-      var args;
-      var self;
-      var Type = function() {};
-      var method = Type.prototype.method = function (..._args) {
-        args = _args;
-        self = this;
-        return 'OK';
-      };
-      var delegateMethod;
-      var delegateSymbol;
+      let args;
+      let self;
+      class Type {
+        method(..._args: any[]) {
+          args = _args;
+          self = this;
+          return 'OK';
+        }
+      }
+      const method = Type.prototype.method;
+      let delegateMethod: Function;
+      let delegateSymbol: string;
 
-      var instance = new Type();
-      expect(patchMethod(instance, 'method', (delegate, symbol, name) => {
+      const instance = new Type();
+      expect(patchMethod(instance, 'method', (delegate: Function, symbol: string, name: string) => {
         expect(name).toEqual('method');
         delegateMethod = delegate;
         delegateSymbol = symbol;
-        return function (self, args) {
+        return function(self, args) {
           return delegate.apply(self, ['patch', args[0]]);
-        }
+        };
       })).toBe(delegateMethod);
 
       expect(instance.method('a0')).toEqual('OK');
@@ -30,38 +40,293 @@ describe('utils', function () {
       expect(self).toBe(instance);
       expect(delegateMethod).toBe(method);
       expect(delegateSymbol).toEqual(zoneSymbol('method'));
-      expect(Type.prototype[delegateSymbol]).toBe(method);
+      expect((Type.prototype as any)[delegateSymbol]).toBe(method);
     });
 
     it('should not double patch', () => {
-      var Type = function() {};
-      var method = Type.prototype.method = function () {};
+      const Type = function() {};
+      const method = Type.prototype.method = function() {};
       patchMethod(Type.prototype, 'method', (delegate) => {
-        return function (self, args: any[]) { return delegate.apply(self, ['patch', ...args]); }
+        return function(self, args: any[]) {
+          return delegate.apply(self, ['patch', ...args]);
+        };
       });
-      var pMethod = Type.prototype.method;
+      const pMethod = Type.prototype.method;
       expect(pMethod).not.toBe(method);
       patchMethod(Type.prototype, 'method', (delegate) => {
-        return function (self, args) { return delegate.apply(self, ['patch', ...args]); }
+        return function(self, args) {
+          return delegate.apply(self, ['patch', ...args]);
+        };
       });
       expect(pMethod).toBe(Type.prototype.method);
     });
 
-    it('should have a method name in the stacktrace', () => {
-      var fn = function someOtherName() { throw new Error('MyError'); };
-      var target = { mySpecialMethodName: fn }
-      patchMethod(target, 'mySpecialMethodName', (delegate: Function) => {
-        return function(self, args) { return delegate() };
-      });
-      try {
-        target.mySpecialMethodName();
-      } catch (e) {
-        if (e.stack) {
-          expect(e.stack).toContain('mySpecialMethodName');
-        }
+    it('should not patch property which is not configurable', () => {
+      const TestType = function() {};
+      const originalDefineProperty = (Object as any)[zoneSymbol('defineProperty')];
+      if (originalDefineProperty) {
+        originalDefineProperty(
+            TestType.prototype, 'nonConfigurableProperty',
+            {configurable: false, writable: true, value: 'test'});
+      } else {
+        Object.defineProperty(
+            TestType.prototype, 'nonConfigurableProperty',
+            {configurable: false, writable: true, value: 'test'});
       }
+      patchProperty(TestType.prototype, 'nonConfigurableProperty');
+      const desc = Object.getOwnPropertyDescriptor(TestType.prototype, 'nonConfigurableProperty');
+      expect(desc.writable).toBeTruthy();
+      expect(!desc.get).toBeTruthy();
     });
   });
 
+  describe('patchPrototype', () => {
+    it('non configurable property desc should be patched', () => {
+      'use strict';
+      const TestFunction: any = function() {};
+      const log: string[] = [];
+      Object.defineProperties(TestFunction.prototype, {
+        'property1': {
+          value: function Property1(callback: Function) {
+            Zone.root.run(callback);
+          },
+          writable: true,
+          configurable: true,
+          enumerable: true
+        },
+        'property2': {
+          value: function Property2(callback: Function) {
+            Zone.root.run(callback);
+          },
+          writable: true,
+          configurable: false,
+          enumerable: true
+        }
+      });
+
+      const zone = Zone.current.fork({name: 'patch'});
+
+      zone.run(() => {
+        const instance = new TestFunction();
+        instance.property1(() => {
+          log.push('property1' + Zone.current.name);
+        });
+        instance.property2(() => {
+          log.push('property2' + Zone.current.name);
+        });
+      });
+      expect(log).toEqual(['property1<root>', 'property2<root>']);
+      log.length = 0;
+
+      patchPrototype(TestFunction.prototype, ['property1', 'property2']);
+
+      zone.run(() => {
+        const instance = new TestFunction();
+        instance.property1(() => {
+          log.push('property1' + Zone.current.name);
+        });
+        instance.property2(() => {
+          log.push('property2' + Zone.current.name);
+        });
+      });
+      expect(log).toEqual(['property1patch', 'property2patch']);
+    });
+
+    it('non writable property desc should not be patched', () => {
+      'use strict';
+      const TestFunction: any = function() {};
+      const log: string[] = [];
+      Object.defineProperties(TestFunction.prototype, {
+        'property1': {
+          value: function Property1(callback: Function) {
+            Zone.root.run(callback);
+          },
+          writable: true,
+          configurable: true,
+          enumerable: true
+        },
+        'property2': {
+          value: function Property2(callback: Function) {
+            Zone.root.run(callback);
+          },
+          writable: false,
+          configurable: true,
+          enumerable: true
+        }
+      });
+
+      const zone = Zone.current.fork({name: 'patch'});
+
+      zone.run(() => {
+        const instance = new TestFunction();
+        instance.property1(() => {
+          log.push('property1' + Zone.current.name);
+        });
+        instance.property2(() => {
+          log.push('property2' + Zone.current.name);
+        });
+      });
+      expect(log).toEqual(['property1<root>', 'property2<root>']);
+      log.length = 0;
+
+      patchPrototype(TestFunction.prototype, ['property1', 'property2']);
+
+      zone.run(() => {
+        const instance = new TestFunction();
+        instance.property1(() => {
+          log.push('property1' + Zone.current.name);
+        });
+        instance.property2(() => {
+          log.push('property2' + Zone.current.name);
+        });
+      });
+      expect(log).toEqual(['property1patch', 'property2<root>']);
+    });
+
+    it('readonly property desc should not be patched', () => {
+      'use strict';
+      const TestFunction: any = function() {};
+      const log: string[] = [];
+      Object.defineProperties(TestFunction.prototype, {
+        'property1': {
+          get: function() {
+            if (!this._property1) {
+              this._property1 = function Property2(callback: Function) {
+                Zone.root.run(callback);
+              };
+            }
+            return this._property1;
+          },
+          set: function(func: Function) {
+            this._property1 = func;
+          },
+          configurable: true,
+          enumerable: true
+        },
+        'property2': {
+          get: function() {
+            return function Property2(callback: Function) {
+              Zone.root.run(callback);
+            };
+          },
+          configurable: true,
+          enumerable: true
+        }
+      });
+
+      const zone = Zone.current.fork({name: 'patch'});
+
+      zone.run(() => {
+        const instance = new TestFunction();
+        instance.property1(() => {
+          log.push('property1' + Zone.current.name);
+        });
+        instance.property2(() => {
+          log.push('property2' + Zone.current.name);
+        });
+      });
+      expect(log).toEqual(['property1<root>', 'property2<root>']);
+      log.length = 0;
+
+      patchPrototype(TestFunction.prototype, ['property1', 'property2']);
+
+      zone.run(() => {
+        const instance = new TestFunction();
+        instance.property1(() => {
+          log.push('property1' + Zone.current.name);
+        });
+        instance.property2(() => {
+          log.push('property2' + Zone.current.name);
+        });
+      });
+      expect(log).toEqual(['property1patch', 'property2<root>']);
+    });
+
+    it('non writable method should not be patched', () => {
+      'use strict';
+      const TestFunction: any = function() {};
+      const log: string[] = [];
+      Object.defineProperties(TestFunction.prototype, {
+        'property2': {
+          value: function Property2(callback: Function) {
+            Zone.root.run(callback);
+          },
+          writable: false,
+          configurable: true,
+          enumerable: true
+        }
+      });
+
+      const zone = Zone.current.fork({name: 'patch'});
+
+      zone.run(() => {
+        const instance = new TestFunction();
+        instance.property2(() => {
+          log.push('property2' + Zone.current.name);
+        });
+      });
+      expect(log).toEqual(['property2<root>']);
+      log.length = 0;
+
+      patchMethod(
+          TestFunction.prototype, 'property2',
+          function(delegate: Function, delegateName: string, name: string) {
+            return function(self: any, args: any) {
+              log.push('patched property2');
+            };
+          });
+
+      zone.run(() => {
+        const instance = new TestFunction();
+        instance.property2(() => {
+          log.push('property2' + Zone.current.name);
+        });
+      });
+      expect(log).toEqual(['property2<root>']);
+    });
+
+    it('readonly method should not be patched', () => {
+      'use strict';
+      const TestFunction: any = function() {};
+      const log: string[] = [];
+      Object.defineProperties(TestFunction.prototype, {
+        'property2': {
+          get: function() {
+            return function Property2(callback: Function) {
+              Zone.root.run(callback);
+            };
+          },
+          configurable: true,
+          enumerable: true
+        }
+      });
+
+      const zone = Zone.current.fork({name: 'patch'});
+
+      zone.run(() => {
+        const instance = new TestFunction();
+        instance.property2(() => {
+          log.push('property2' + Zone.current.name);
+        });
+      });
+      expect(log).toEqual(['property2<root>']);
+      log.length = 0;
+
+      patchMethod(
+          TestFunction.prototype, 'property2',
+          function(delegate: Function, delegateName: string, name: string) {
+            return function(self: any, args: any) {
+              log.push('patched property2');
+            };
+          });
+
+      zone.run(() => {
+        const instance = new TestFunction();
+        instance.property2(() => {
+          log.push('property2' + Zone.current.name);
+        });
+      });
+      expect(log).toEqual(['property2<root>']);
+    });
+  });
 });
-export var __something__;

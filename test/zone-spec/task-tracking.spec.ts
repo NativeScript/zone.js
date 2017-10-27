@@ -1,7 +1,19 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import '../../lib/zone-spec/task-tracking';
 
+import {supportPatchXHROnProperty} from '../test-util';
+
+declare const global: any;
+
 describe('TaskTrackingZone', function() {
-  let _TaskTrackingZoneSpec: typeof TaskTrackingZoneSpec = Zone['TaskTrackingZoneSpec'];
+  let _TaskTrackingZoneSpec: typeof TaskTrackingZoneSpec = (Zone as any)['TaskTrackingZoneSpec'];
   let taskTrackingZoneSpec: TaskTrackingZoneSpec = null;
   let taskTrackingZone: Zone;
 
@@ -12,14 +24,14 @@ describe('TaskTrackingZone', function() {
 
   it('should track tasks', (done: Function) => {
     taskTrackingZone.run(() => {
-      const microTask = taskTrackingZone.scheduleMicroTask('test1', () => {});
+      taskTrackingZone.scheduleMicroTask('test1', () => {});
       expect(taskTrackingZoneSpec.microTasks.length).toBe(1);
       expect(taskTrackingZoneSpec.microTasks[0].source).toBe('test1');
 
-      const macroTask = setTimeout(() => {}) as any as Task;
+      setTimeout(() => {});
       expect(taskTrackingZoneSpec.macroTasks.length).toBe(1);
       expect(taskTrackingZoneSpec.macroTasks[0].source).toBe('setTimeout');
-      taskTrackingZone.cancelTask(macroTask);
+      taskTrackingZone.cancelTask(taskTrackingZoneSpec.macroTasks[0]);
       expect(taskTrackingZoneSpec.macroTasks.length).toBe(0);
 
       setTimeout(() => {
@@ -37,7 +49,9 @@ describe('TaskTrackingZone', function() {
             setTimeout(() => {
               expect(taskTrackingZoneSpec.macroTasks.length).toBe(0);
               expect(taskTrackingZoneSpec.microTasks.length).toBe(0);
-              expect(taskTrackingZoneSpec.eventTasks.length).not.toBe(0);
+              if (supportPatchXHROnProperty()) {
+                expect(taskTrackingZoneSpec.eventTasks.length).not.toBe(0);
+              }
               taskTrackingZoneSpec.clearEvents();
               expect(taskTrackingZoneSpec.eventTasks.length).toBe(0);
               done();
@@ -47,20 +61,20 @@ describe('TaskTrackingZone', function() {
         xhr.send();
         expect(taskTrackingZoneSpec.macroTasks.length).toBe(1);
         expect(taskTrackingZoneSpec.macroTasks[0].source).toBe('XMLHttpRequest.send');
-        expect(taskTrackingZoneSpec.eventTasks[0].source).toMatch(/\.addEventListener:readystatechange/);
+        if (supportPatchXHROnProperty()) {
+          expect(taskTrackingZoneSpec.eventTasks[0].source)
+              .toMatch(/\.addEventListener:readystatechange/);
+        }
       });
-      
-    });    
+    });
   });
 
   it('should capture task creation stacktrace', (done) => {
     taskTrackingZone.run(() => {
-      const task = setTimeout(() => {
+      setTimeout(() => {
         done();
-      }) as any as Task;
-      expect(task['creationLocation']).toBeTruthy();
+      });
+      expect((taskTrackingZoneSpec.macroTasks[0] as any)['creationLocation']).toBeTruthy();
     });
   });
 });
-
-export var __something__;
