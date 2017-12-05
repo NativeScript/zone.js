@@ -858,6 +858,8 @@ const Zone: ZoneType = (function(global: any) {
         zoneDelegates[i]._updateTaskCount(task.type, count);
       }
     }
+
+    static drainMicroTaskQueue: () => void;
   }
 
   const DELEGATE_ZS: ZoneSpec = {
@@ -1292,6 +1294,7 @@ const Zone: ZoneType = (function(global: any) {
       _isDrainingMicrotaskQueue = false;
     }
   }
+  Zone.drainMicroTaskQueue = drainMicroTaskQueue;
 
   function isThenable(value: any): boolean {
     return value && value.then;

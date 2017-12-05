@@ -616,6 +616,7 @@ var Zone$1 = (function (global) {
             _isDrainingMicrotaskQueue = false;
         }
     }
+    Zone.drainMicroTaskQueue = drainMicroTaskQueue;
     function isThenable(value) {
         return value && value.then;
     }
@@ -1630,6 +1631,7 @@ function patchEventTargetMethods(obj, addFnName, removeFnName, metaCreator) {
         return false;
     }
 }
+var originalInstanceKey = zoneSymbol('originalInstance');
 // wrap some native API on `window`
 
 
