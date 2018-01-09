@@ -81,6 +81,14 @@ gulp.task('build/zone-nativescript.js', ['compile-esm'], function(cb) {
   return generateScript('./lib/nativescript/nativescript.ts', 'zone-nativescript.js', false, cb);
 });
 
+gulp.task('build/zone-nativescript.mocha.js', ['compile-esm'], function(cb) {
+  return generateScript('./lib/nativescript/nativescript.mocha.ts', 'zone-nativescript.mocha.js', false, cb);
+});
+
+gulp.task('build/zone-nativescript.jasmine.js', ['compile-esm'], function(cb) {
+  return generateScript('./lib/nativescript/nativescript.jasmine.ts', 'zone-nativescript.jasmine.js', false, cb);
+});
+
 // Zone for the browser.
 gulp.task('build/zone.js', ['compile-esm'], function(cb) {
   return generateScript('./lib/browser/rollup-main.ts', 'zone.js', false, cb);
@@ -192,6 +200,8 @@ gulp.task('build', [
   'build/bluebird.js',
   'build/bluebird.min.js',
   'build/zone-nativescript.js',
+  'build/zone-nativescript.mocha.js',
+  'build/zone-nativescript.jasmine.js',
   'build/jasmine-patch.js',
   'build/jasmine-patch.min.js',
   'build/mocha-patch.js',

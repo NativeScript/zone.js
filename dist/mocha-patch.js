@@ -18,6 +18,7 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
+'use strict';
 (function (context) {
     var Mocha = context.Mocha;
     if (typeof Mocha === 'undefined') {
@@ -150,6 +151,6 @@
             return originalRun.call(this, fn);
         };
     })(Mocha.Runner.prototype.runTest, Mocha.Runner.prototype.run);
-})(window);
+})(typeof window !== 'undefined' && window || typeof self !== 'undefined' && self || global);
 
 })));
